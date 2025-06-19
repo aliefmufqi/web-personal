@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kalkulator Laba Rugi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
+  <link rel="stylesheet" href="edit.js">
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-blue-300 min-h-screen py-10 px-4 font-sans">
+
+  <div class="max-w-5xl mx-auto bg-white p-6 md:p-10 rounded-2xl shadow-2xl space-y-6">
+    <h1 class="text-3xl font-bold text-center text-blue-700">Kalkulator Laba & Rugi</h1>
+
+    <!-- Form -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div>
+        <label class="block font-medium text-gray-700">Harga Beli</label>
+        <input id="hargaBeli" type="number" class="w-full p-2 mt-1 rounded-xl border focus:ring-2 focus:ring-blue-500" placeholder="Contoh: 10000">
+      </div>
+      <div>
+        <label class="block font-medium text-gray-700">Harga Jual</label>
+        <input id="hargaJual" type="number" class="w-full p-2 mt-1 rounded-xl border focus:ring-2 focus:ring-blue-500" placeholder="Contoh: 15000">
+      </div>
+      <div>
+        <label class="block font-medium text-gray-700">Jumlah</label>
+        <input id="jumlah" type="number" class="w-full p-2 mt-1 rounded-xl border focus:ring-2 focus:ring-blue-500" placeholder="Contoh: 10">
+      </div>
+    </div>
+
+    <!-- Tombol Hitung -->
+    <button onclick="hitung()" class="w-full bg-blue-600 text-white p-3 rounded-xl text-lg hover:bg-blue-700 transition">Hitung & Simpan</button>
+
+    <!-- Hasil -->
+    <div id="hasil" class="text-center text-xl font-semibold mt-2 md:mt-4"></div>
+
+    <!-- Tombol Ekspor -->
+    <div class="flex flex-col md:flex-row gap-3 justify-end pt-4">
+      <button onclick="exportExcel()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl w-full md:w-auto">Ekspor ke Excel</button>
+      <button onclick="exportPDF()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl w-full md:w-auto">Ekspor ke PDF</button>
+    </div>
+
+    <!-- Tabel Riwayat -->
+    <div class="pt-6">
+      <h2 class="text-2xl font-bold mb-2 text-gray-800">Riwayat Perhitungan</h2>
+      <div class="overflow-x-auto">
+        <table id="riwayatTable" class="min-w-full text-sm text-center bg-white border border-gray-300 rounded-xl">
+          <thead class="bg-blue-100 text-gray-700">
+            <tr>
+              <th class="px-4 py-2 border">#</th>
+              <th class="px-4 py-2 border">Harga Beli</th>
+              <th class="px-4 py-2 border">Harga Jual</th>
+              <th class="px-4 py-2 border">Jumlah</th>
+              <th class="px-4 py-2 border">Hasil</th>
+            </tr>
+          </thead>
+          <tbody id="tabelRiwayat">
+            <!-- Data akan ditambahkan di sini -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center text-sm text-gray-500 mt-10">
+    Dibuat oleh <span class="font-semibold text-blue-600">Alief Mufqi Alwany</span> &copy; 2025
+  </footer>
+
+  <script>
+    let counter = 1;
+
+    // Load data dari localStorage saat halaman dibuka
+    window.onload = () => {
+      const data = JSON.parse(localStorage.getItem("riwayatLabaRugi")) || [];
+      data.forEach((item, i) => {
+        tambahKeTabel(item.beli, item.jual, item.jumlah, i + 1);
+      });
+      counter = data.length + 1;
+    };
+
+    function hitung() {
+      const beli = parseFloat(document.getElementById('hargaBeli').value);
+      const jual = parseFloat(document.getElementById('hargaJual').value);
+      const jumlah = parseInt(document.getElementById('jumlah').value);
+      const hasilDiv = document.getElementById('hasil');
+
+      if (isNaN(beli) || isNaN(jual) || isNaN(jumlah)) {
+        hasilDiv.innerHTML = `<span class="text-red-500">Mohon isi semua data dengan benar.</span>`;
+        return;
+      }
+
+      tambahKeTabel(beli, jual, jumlah, counter);
+      simpanKeLocalStorage(beli, jual, jumlah);
+
+      // Tampilkan hasil
+      const totalBeli = beli * jumlah;
+      const totalJual = jual * jumlah;
+      const selisih = totalJual - totalBeli;
+      let hasilText = '';
+      let warna = '';
+
+      if (selisih > 0) {
+        hasilText = `Keuntungan: Rp ${selisih.toLocaleString()}`;
+        warna = 'text-green-600';
+      } else if (selisih < 0) {
+        hasilText = `Kerugian: Rp ${Math.abs(selisih).toLocaleString()}`;
+        warna = 'text-red-600';
+      } else {
+        hasilText = `Impas`;
+        warna = 'text-gray-600';
+      }
+
+      hasilDiv.innerHTML = `<span class="${warna}">${hasilText}</span>`;
+
+      // Reset input
+      document.getElementById('hargaBeli').value = '';
+      document.getElementById('hargaJual').value = '';
+      document.getElementById('jumlah').value = '';
+    }
+
+    function tambahKeTabel(beli, jual, jumlah, no) {
+      const totalBeli = beli * jumlah;
+      const totalJual = jual * jumlah;
+      const selisih = totalJual - totalBeli;
+      const warna = selisih > 0 ? 'text-green-600' : selisih < 0 ? 'text-red-600' : 'text-gray-600';
+      const hasilText = selisih > 0
+        ? `Keuntungan: Rp ${selisih.toLocaleString()}`
+        : selisih < 0
+        ? `Kerugian: Rp ${Math.abs(selisih).toLocaleString()}`
+        : `Impas`;
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="border px-4 py-2">${no}</td>
+        <td class="border px-4 py-2">Rp ${beli.toLocaleString()}</td>
+        <td class="border px-4 py-2">Rp ${jual.toLocaleString()}</td>
+        <td class="border px-4 py-2">${jumlah}</td>
+        <td class="border px-4 py-2 ${warna}">${hasilText}</td>
+      `;
+      document.getElementById('tabelRiwayat').appendChild(row);
+      counter++;
+    }
+
+    function simpanKeLocalStorage(beli, jual, jumlah) {
+      const dataLama = JSON.parse(localStorage.getItem("riwayatLabaRugi")) || [];
+      dataLama.push({ beli, jual, jumlah });
+      localStorage.setItem("riwayatLabaRugi", JSON.stringify(dataLama));
+    }
+
+    function exportExcel() {
+      const table = document.getElementById('riwayatTable');
+      const workbook = XLSX.utils.table_to_book(table, { sheet: "Riwayat" });
+      XLSX.writeFile(workbook, "riwayat_laba_rugi.xlsx");
+    }
+
+    async function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Riwayat Perhitungan Laba Rugi", 14, 16);
+
+      const table = document.querySelector("#riwayatTable");
+      const rows = [...table.rows].map(row => [...row.cells].map(cell => cell.innerText));
+
+      doc.autoTable({
+        head: [rows[0]],
+        body: rows.slice(1),
+        startY: 20,
+        theme: "striped",
+      });
+
+      doc.save("riwayat_laba_rugi.pdf");
+    }
+  </script>
+
+</body>
+</html>
